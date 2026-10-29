@@ -1,0 +1,225 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Poker Rookies Timer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: tournament-clock style. Top bar, center clock with level + progress, side info columns (NEXT / 退室まで / BLINDS), giant spade watermark behind. Monochrome. */
+:root{
+  --bg:#060606; --panel:#111; --line:#2b2b2b; --ink:#f5f5f5; --muted:#8a8a8a; --dim:#555; --spade:#ffffff;
+  --display:"Big Shoulders Display","Zen Kaku Gothic New",sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;margin:0;overflow-x:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 28px}
+.spade{position:fixed;left:50%;top:52%;width:min(92vw,92vh);aspect-ratio:1;transform:translate(-50%,-50%);opacity:.07;pointer-events:none;z-index:0}
+.spade path{fill:var(--spade)}
+.app{position:relative;z-index:1;max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:100%}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+.brand{font-family:var(--display);font-weight:900;font-size:clamp(22px,3.4vw,34px);letter-spacing:.08em;line-height:1}
+.brand small{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;margin-left:10px;font-weight:500}
+.clocknow{font-family:var(--mono);color:var(--muted);font-size:14px}
+.stage{display:grid;grid-template-columns:1fr minmax(0,2.4fr) 1fr;gap:14px;align-items:stretch;flex:1}
+@media (max-width:820px){.stage{grid-template-columns:1fr 1fr}.center{grid-column:1/-1;order:-1}}
+.side{display:flex;flex-direction:column;gap:14px}
+.box{border:1px solid var(--line);background:rgba(17,17,17,.72);padding:14px 16px;display:flex;flex-direction:column;gap:4px;backdrop-filter:blur(2px)}
+.box h3{margin:0;font-size:11px;letter-spacing:.22em;color:var(--muted);font-weight:700}
+.box .v{font-family:var(--display);font-weight:700;font-size:clamp(28px,4vw,46px);line-height:1;font-variant-numeric:tabular-nums}
+.box .s{font-size:13px;color:var(--muted)}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:18px 8px}
+.lv{font-family:var(--mono);font-size:13px;letter-spacing:.3em;color:var(--muted)}
+.name{font-weight:900;font-size:clamp(22px,4.2vw,44px);letter-spacing:.06em;line-height:1.1;overflow-wrap:anywhere}
+.time{font-family:var(--display);font-weight:900;font-size:clamp(96px,19vw,260px);line-height:.85;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.bar{width:100%;max-width:640px;height:6px;background:var(--line)}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .4s linear}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+button{font-family:var(--body);cursor:pointer}
+.btn{background:var(--ink);color:var(--bg);border:1px solid var(--ink);font-weight:900;font-size:15px;padding:11px 20px;min-width:96px;letter-spacing:.06em}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+/* flash when a level ends */
+.app.flash .center{animation:inv .5s steps(2) 6}
+@keyframes inv{50%{background:var(--ink);color:var(--bg)}}
+/* hand countdown takeover */
+.hands{border:2px solid var(--ink);background:rgba(6,6,6,.85);padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.hands .hn{font-family:var(--display);font-weight:900;font-size:clamp(70px,14vw,170px);line-height:.9;font-variant-numeric:tabular-nums}
+.hands .ht{font-weight:900;font-size:clamp(20px,4vw,40px);letter-spacing:.12em}
+.hands.last{background:var(--ink);color:var(--bg)}
+.hands.last .btn{background:var(--bg);color:var(--ink);border-color:var(--bg)}
+.hands.last .btn.ghost{background:transparent;color:var(--bg);border-color:var(--bg)}
+/* settings */
+.settings{border:1px solid var(--line);background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:14px}
+.settings h2{margin:0;font-size:13px;letter-spacing:.2em;color:var(--muted)}
+.lvrow{display:grid;grid-template-columns:34px 1fr 92px 34px;gap:8px;align-items:center}
+.lvrow span{font-family:var(--mono);color:var(--muted);font-size:13px}
+input{background:var(--bg);border:1px solid var(--line);color:var(--ink);font:16px var(--body);padding:8px 10px;min-width:0}
+input[type="number"],input[type="time"]{font-family:var(--mono)}
+.x{background:none;border:1px solid var(--line);color:var(--muted);height:38px}
+.opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:14px}
+.opts label{display:flex;gap:6px;align-items:center}
+.opts input[type="number"]{width:72px}
+.hint{color:var(--muted);font-size:12px;margin:0}
+@media (prefers-reduced-motion:reduce){.app.flash .center{animation:none;outline:3px solid var(--ink)}}
+</style>
+
+<svg class="spade" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 3C40 20 6 36 6 59c0 16 13 26 27 25 7-.5 12-4 14-9-1 9-5 17-13 21h32c-8-4-12-12-13-21 2 5 7 8.5 14 9 14 1 27-9 27-25C94 36 60 20 50 3Z"/></svg>
+
+<div class="app" id="app">
+  <div class="top">
+    <div class="brand">♠ POKER ROOKIES<small>CASH GAME ・ 100BB</small></div>
+    <div style="display:flex;gap:12px;align-items:center"><div class="clocknow" id="now">--:--</div><button class="btn ghost" id="topSet" type="button" style="min-width:0;padding:7px 14px;font-size:13px">⚙ 設定</button></div>
+  </div>
+
+  <div class="stage">
+    <div class="side">
+      <div class="box"><h3>BLINDS</h3><div class="v">50 / 100</div><div class="s">SB / BB</div></div>
+      <div class="box"><h3>BUY-IN</h3><div class="v">10,000</div><div class="s">100BB</div></div>
+    </div>
+
+    <div class="center">
+      <div class="lv" id="lv">LEVEL 1 / 3</div>
+      <div class="name" id="lvName">ディーラー交代</div>
+      <div class="time" id="time">30:00</div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="ctrl">
+        <button class="btn ghost" id="prev" type="button" aria-label="前のレベル">◀</button>
+        <button class="btn" id="go" type="button">START</button>
+        <button class="btn ghost" id="next" type="button" aria-label="次のレベル">▶</button>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="box"><h3>NEXT</h3><div class="v" id="nextTime">30:00</div><div class="s" id="nextName">ディーラー交代</div></div>
+      <div class="box"><h3>退室まで</h3><div class="v" id="room">--:--</div><div class="s" id="roomS">終了時刻を設定</div></div>
+    </div>
+  </div>
+
+  <div class="hands" id="hands" hidden>
+    <div class="ht" id="handsT">残り</div>
+    <div class="hn" id="handsN">5</div>
+    <div class="ctrl">
+      <button class="btn" id="handDone" type="button">1ハンド終了</button>
+      <button class="btn ghost" id="handUndo" type="button">戻す</button>
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <button class="btn ghost" id="toggleSet" type="button" aria-expanded="false">タイマーを組む</button>
+    <button class="btn ghost" id="handStart" type="button">ハンドカウント開始</button>
+  </div>
+
+  <section class="settings" id="settings" hidden>
+    <h2>レベル（上から順に進む）</h2>
+    <div id="levels" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="ctrl" style="justify-content:flex-start">
+      <button class="btn ghost" id="addLv" type="button">＋ レベル追加</button>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="loop" checked> 最後まで行ったら最初に戻る</label>
+    </div>
+    <h2>退室・ラストハンド</h2>
+    <div class="opts">
+      <label>終了時刻 <input type="time" id="endAt" value="23:00"></label>
+      <label><input type="number" id="trigMin" value="10" min="1" max="60"> 分前に</label>
+      <label>残り <input type="number" id="handCount" value="5" min="1" max="20"> ハンドのカウント開始</label>
+    </div>
+    <p class="hint">キーボード：スペース＝スタート/一時停止、H＝1ハンド終了。設定はこの端末に保存されます。</p>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,"0");
+const mmss=s=>{s=Math.max(0,Math.ceil(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${pad(m)}:${pad(x)}`:`${pad(m)}:${pad(x)}`};
+const KEY="akiba-timer-v2";
+let cfg={levels:[{n:"ディーラー交代",m:30},{n:"ディーラー交代",m:30},{n:"休憩",m:10}],loop:true,endAt:"23:00",trigMin:10,handCount:5};
+try{const s=localStorage.getItem(KEY);if(s)cfg=Object.assign(cfg,JSON.parse(s));}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}};
+
+/* sound + wake */
+let actx=null;
+function beep(f=880,d=.2,n=1){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  for(let i=0;i<n;i++){const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.connect(g);g.connect(actx.destination);
+  const t=actx.currentTime+i*(d+.12);g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d);}}catch(e){}}
+let wake=null;async function awake(){try{if(navigator.wakeLock&&!wake){wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>wake=null);}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)awake();});
+
+/* level clock */
+let idx=0,left=cfg.levels[0].m*60,endT=0,running=false;
+const lvSec=i=>Math.max(1,+cfg.levels[i].m||1)*60;
+function setLevel(i){idx=(i+cfg.levels.length)%cfg.levels.length;left=lvSec(idx);if(running)endT=Date.now()+left*1000;}
+function flash(){const a=$("app");a.classList.remove("flash");void a.offsetWidth;a.classList.add("flash");}
+$("go").addEventListener("click",toggle);
+function toggle(){beep(0,.01);awake();
+  if(running){left=(endT-Date.now())/1000;running=false;}else{endT=Date.now()+left*1000;running=true;}draw();}
+$("prev").addEventListener("click",()=>{setLevel(idx-1);draw();});
+$("next").addEventListener("click",()=>{setLevel(idx+1);draw();});
+
+/* room + hands */
+let hands=null, handsAuto=false;
+function roomEnd(){const v=cfg.endAt;if(!v)return null;const[h,m]=v.split(":").map(Number);const n=new Date(),d=new Date(n);d.setHours(h,m,0,0);if(d-n<-6*3600e3)d.setDate(d.getDate()+1);return d;}
+function startHands(){hands=Math.max(1,+cfg.handCount||5);beep(660,.3,3);flash();drawHands();}
+$("handStart").addEventListener("click",()=>{beep(0,.01);if(hands===null)startHands();else{hands=null;drawHands();}});
+$("handDone").addEventListener("click",handDone);
+function handDone(){if(hands===null)return;hands=Math.max(0,hands-1);beep(hands<=1?520:880,.18,hands===1?2:1);if(hands===0)beep(392,.5,3);drawHands();}
+$("handUndo").addEventListener("click",()=>{if(hands!==null){hands=Math.min(+cfg.handCount||5,hands+1);drawHands();}});
+function drawHands(){
+  const el=$("hands");el.hidden=hands===null;$("handStart").textContent=hands===null?"ハンドカウント開始":"ハンドカウントを閉じる";
+  if(hands===null)return;
+  el.classList.toggle("last",hands<=1);
+  if(hands>1){$("handsT").textContent="残り";$("handsN").textContent=hands;$("handsN").hidden=false;$("handDone").hidden=false;}
+  else if(hands===1){$("handsT").textContent="LAST ONE HAND";$("handsN").textContent="ラストワンハンド";$("handsN").style.fontSize="clamp(40px,9vw,110px)";$("handDone").hidden=false;}
+  else{$("handsT").textContent="GAME OVER";$("handsN").textContent="精算へ";$("handsN").style.fontSize="clamp(40px,9vw,110px)";$("handDone").hidden=true;}
+  if(hands>1)$("handsN").style.fontSize="";
+}
+
+/* settings UI */
+$("toggleSet").addEventListener("click",()=>{const s=$("settings");s.hidden=!s.hidden;$("toggleSet").setAttribute("aria-expanded",!s.hidden);$("toggleSet").textContent=s.hidden?"タイマーを組む":"閉じる";});
+$("topSet").addEventListener("click",()=>{const s=$("settings");if(s.hidden)$("toggleSet").click();s.scrollIntoView({behavior:"smooth",block:"start"});});
+function drawLevels(){
+  $("levels").innerHTML=cfg.levels.map((l,i)=>`<div class="lvrow"><span>${i+1}</span>
+    <input id="lvn-${i}" data-i="${i}" data-k="n" value="${l.n.replace(/"/g,"&quot;")}" maxlength="16" aria-label="レベル${i+1}の名前">
+    <input id="lvm-${i}" data-i="${i}" data-k="m" type="number" min="1" max="240" value="${l.m}" aria-label="レベル${i+1}の分数">
+    <button class="x" type="button" data-del="${i}" aria-label="レベル${i+1}を削除">×</button></div>`).join("");
+}
+$("levels").addEventListener("input",e=>{const t=e.target;if(t.dataset.i===undefined)return;const l=cfg.levels[+t.dataset.i];
+  if(t.dataset.k==="n")l.n=t.value||"レベル";else l.m=Math.max(1,parseInt(t.value)||1);
+  if(+t.dataset.i===idx&&!running&&t.dataset.k==="m")left=lvSec(idx);save();draw();});
+$("levels").addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(!b||cfg.levels.length<=1)return;
+  cfg.levels.splice(+b.dataset.del,1);if(idx>=cfg.levels.length)setLevel(0);save();drawLevels();draw();});
+$("addLv").addEventListener("click",()=>{cfg.levels.push({n:"ディーラー交代",m:30});save();drawLevels();draw();});
+$("loop").checked=cfg.loop;$("loop").addEventListener("change",e=>{cfg.loop=e.target.checked;save();});
+["endAt","trigMin","handCount"].forEach(k=>{$(k).value=cfg[k];$(k).addEventListener("change",e=>{cfg[k]=e.target.value;handsAuto=false;save();draw();});});
+document.addEventListener("keydown",e=>{if(e.target.tagName==="INPUT")return;
+  if(e.code==="Space"){e.preventDefault();toggle();} if(e.key==="h"||e.key==="H")handDone();});
+
+/* draw loop */
+function draw(){
+  const n=new Date();$("now").textContent=`${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  const L=cfg.levels.length,lv=cfg.levels[idx],tot=lvSec(idx);
+  $("lv").textContent=`LEVEL ${idx+1} / ${L}`;$("lvName").textContent=lv.n;
+  $("time").textContent=mmss(left);$("bar").style.width=(left/tot*100)+"%";
+  $("go").textContent=running?"PAUSE":"START";
+  const ni=idx+1<L?idx+1:(cfg.loop?0:-1);
+  $("nextTime").textContent=ni<0?"--:--":mmss(lvSec(ni));$("nextName").textContent=ni<0?"最終レベル":cfg.levels[ni].n;
+  const d=roomEnd();
+  if(d){const s=(d-Date.now())/1000,trig=(+cfg.trigMin||10)*60;
+    $("room").textContent=s>0?mmss(s):"00:00";
+    $("roomS").textContent=s<=0?"終了時刻":s<=trig?"ラストハンドへ":`${cfg.endAt} 終了 ・ ${cfg.trigMin}分前にカウント`;
+    if(s<=trig&&s>-60&&!handsAuto){handsAuto=true;if(hands===null)startHands();}
+  }
+}
+function tick(){
+  if(running){left=(endT-Date.now())/1000;
+    if(left<=0){beep(784,.25,3);flash();
+      if(idx+1>=cfg.levels.length&&!cfg.loop){left=0;running=false;}
+      else{setLevel(idx+1);endT=Date.now()+left*1000;}}}
+  draw();
+}
+drawLevels();draw();drawHands();setInterval(tick,250);
+</script>
+
+</body></html>
